@@ -2,16 +2,32 @@ package com.tutk.aes;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 
 
 public class AES extends Activity {
 
     private static final String TAG = "AES";
+    private static final String DECODE_FILE = "/sdcard/aes_decode";
+    private static final String ENCODE_FILE = "/sdcard/aes_encode";
     private EditText mProjectText;
 
     @Override
@@ -34,15 +50,52 @@ public class AES extends Activity {
                 Log.d(TAG,"Project name : " +project_name );
                 String md5 = getMD5(mProjectText.getText().toString());
                 Log.d(TAG, "MD5 = " + md5 + "(" + md5.length() + ")");
+                ArrayList<HashMap<String,String>> decode_values = getDecodeInFile();
+                Log.d(TAG,"SIZE = " + decode_values.size());
+                for(HashMap<String,String> value : decode_values)
+                {
+                   String aesValue = AesEncode(md5 , value.get("mac_addr")+ ";" + value.get("uid"));
+                   Log.d(TAG,"UID = " + value.get("uid"));
+                   Log.d(TAG,"AES = " + aesValue);
+                }
             }
             break;
-            case R.id.bt_file: {
-
-            }
         }
     }
 
+    private ArrayList<HashMap<String,String>> getDecodeInFile()
+    {
+        ArrayList<HashMap<String,String>> values = new ArrayList<HashMap<String,String>>();
+        try {
+            FileInputStream fos = new FileInputStream(DECODE_FILE);
+            InputStreamReader isr = new InputStreamReader(fos);
+            BufferedReader br = new BufferedReader(isr);
+            String buf = new String();
+            while((buf = br.readLine())!=null)
+            {
+                if(buf.startsWith("#")==false)
+                {
+                    String[] split = buf.split(";");
+                    HashMap<String,String> value = new HashMap();
+                    value.put("mac_addr",split[0]);
+                    value.put("uid",split[1]);
+                    values.add(value);
+                }
+            }
 
+            br.close();
+            isr.close();
+            fos.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return values;
+    }
+
+    //md5
     private String getMD5(String str)
     {
         String result = "";
@@ -69,4 +122,31 @@ public class AES extends Activity {
         return result;
     }
 
+    // aec decode / encode
+    private String AesEncode(String key, String value) {
+        SecretKeySpec spec = new SecretKeySpec(key.getBytes(), "AES");
+        Cipher cipher;
+        try {
+            cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.ENCRYPT_MODE, spec);
+            return Base64.encodeToString(cipher.doFinal(value.getBytes()), android.util.Base64.NO_WRAP);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+
+    private String AesDecode(String key, String value) {
+        SecretKeySpec spec = new SecretKeySpec(key.getBytes(), "AES");
+        Cipher cipher;
+        try {
+            cipher = Cipher.getInstance("AES");
+            cipher.init(Cipher.DECRYPT_MODE, spec);
+            return new String( cipher.doFinal(Base64.decode(value, android.util.Base64.NO_WRAP)) );
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }
