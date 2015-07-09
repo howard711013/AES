@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">AES Builder</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="bt_decode">Decode</string>
+    <string name="bt_encode">Encode</string>
+    <string name="bt_file">File</string>
+</resources>
